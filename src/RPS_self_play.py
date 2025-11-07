@@ -93,6 +93,8 @@ def train(iterations=10000):
 
 
 if __name__ == "__main__":
+    SEED = 42
+    random.seed(SEED)
     p1_strategy, p2_strategy = train(iterations=10**5)
     print(f"{p1_strategy=}")
 
