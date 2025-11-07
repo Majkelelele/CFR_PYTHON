@@ -1,10 +1,27 @@
 import numpy as np
 import random
 
+# mapping rock == 0, paper == 1 and scissors == 2
+
+# custom value when any player chooses scissors we get value multiplied by 2
+
+VALUE_MATRIX = np.array([
+    [0,  1, -2],
+    [-1, 0,  2],
+    [2, -2,  0],
+], dtype=np.float64)
+
+
+# standard RPS
+# VALUE_MATRIX = np.array([
+#     [0,  1, -1],
+#     [-1, 0,  1],
+#     [1, -1,  0],
+# ], dtype=np.float64)
+
 
 class Player:
     def __init__(self):
-        # mapping rock == 0, paper == 1 and scissors == 2
         self.actions_count = 3
         self.regret_sum = [0] * self.actions_count
         self.strategy_sum = np.zeros(self.actions_count, dtype=np.float64)
@@ -60,14 +77,11 @@ def train(iterations=10000):
         a2 = p2.pick_action(p2_strategy)
 
         
-        actions_utility = [0] * p1.actions_count
-        actions_utility[(a2 + 1) % p1.actions_count] = 1
-        actions_utility[(a2 + 2) % p1.actions_count] = -1
-        
-        for i in range(p1.actions_count):
-            val1 = actions_utility[i] - actions_utility[a1]
-            p1.regret_sum[i] += val1
-            p2.regret_sum[i] -= val1
+        u1 = VALUE_MATRIX[a2, :]                 
+        p1.regret_sum += u1 - u1[a1]
+
+        u2 = -VALUE_MATRIX[:, a1]                
+        p2.regret_sum += u2 - u2[a2]
             
             
     return p1.average_strategy(), p2.average_strategy()
@@ -79,7 +93,7 @@ def train(iterations=10000):
 
 
 if __name__ == "__main__":
-    p1_strategy, p2_strategy = train(iterations=1000000)
+    p1_strategy, p2_strategy = train(iterations=10**5)
     print(f"{p1_strategy=}")
 
     print(f"{p2_strategy=}")
