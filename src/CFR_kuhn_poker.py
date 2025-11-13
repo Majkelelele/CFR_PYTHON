@@ -1,8 +1,14 @@
 import numpy as np
 import random
+import time
+
+
+# https://en.wikipedia.org/wiki/Kuhn_poker
+# based on this there is infinitely many nash equilirbium strategies for player 0 (the one starting) and only ONE UNIQUE for player 1
+# checkout results to see its dependence on seed
 
 PASS, BET = 0,1
-SEED = 42
+SEED = 51
 JACK, QUEEN, KING = (0,1,2)
 CARDS = [JACK, QUEEN, KING]
 ACTIONS = [PASS, BET]
@@ -64,10 +70,9 @@ class Trainer():
         for card in CARDS:
             node = Kuhn_I_node(0, card, [PASS, BET], [PASS, BET])
             self.nodes[str(node)] = node
-        for i in self.nodes:
-            print(i)
     
     def terminal_val(self, hist):
+        # this is values of terminal states from perspective of player 0 (first to act)
         # P1 pass, P2 pass -> showdown, pot = 2
         if hist == "00":
             return 1 if self.cards[0] > self.cards[1] else -1
@@ -107,50 +112,67 @@ class Trainer():
             self.cards[c1], self.cards[c2] = self.cards[c2], self.cards[c1]
 
     def cfr(self, hist, p_1, p_2):
-        info_s: Kuhn_I_node = self.get_infostate(hist)
+        info_s = self.get_infostate(hist)
         if not info_s:
             return self.terminal_val(hist)
-    
-        v_total = 0
-        v_a = [0] * len(info_s.actions)
+
+        player = self.get_player(hist)
+        strategy = info_s.strategy
+
+        v_total = 0.0
+        v_a = [0.0] * len(info_s.actions)
+
+        if player == 0:
+            for a in info_s.actions:
+                v_a[a] = self.cfr(hist + str(a), p_1 * strategy[a], p_2)
+                v_total += strategy[a] * v_a[a]
+            op_reach, our_reach = p_2, p_1  
+            sign = 1.0        
+        else:
+            for a in info_s.actions:
+                v_a[a] = self.cfr(hist + str(a), p_1, p_2 * strategy[a])
+                v_total += strategy[a] * v_a[a]
+            op_reach, our_reach = p_1, p_2 
+            sign = -1.0         
+
         for a in info_s.actions:
-            if self.get_player(hist) == 0:
-                v_a[a] = -self.cfr(hist + str(a), p_1 * info_s.strategy[a], p_2)
-                p_minus_i = p_2
-                p_i = p_1
-            else:
-                v_a[a] = -self.cfr(hist + str(a), p_1, p_2 * info_s.strategy[a])
-                p_minus_i = p_1
-                p_i = p_2
-        
-            v_total += v_a[a] * info_s.strategy[a]
-        
-        for a in info_s.actions:
-            info_s.regret_sum[a] += p_minus_i * (v_a[a] - v_total) 
-            info_s.strategy_sum[a] += p_i * info_s.strategy[a]
-        
+            info_s.regret_sum[a] += op_reach * sign * (v_a[a] - v_total)
+            info_s.strategy_sum[a] += our_reach * strategy[a]
+
         info_s.update_strategy()
         return v_total
+
     
     
     
-    def train(self,iteration=10**5):
-        for _ in range(iteration):
+    def train(self,iterations = 10**7):
+        print(f"{iterations=}")
+        for _ in range(iterations):
             self.shuffle()
             self.cfr("",1,1)
         
         
         for i in self.nodes.values():
             i.do_print()
-                
-            
-            
+        
         
 
 if __name__ == "__main__":
-    random.seed(SEED)
-    trainer = Trainer()
-    trainer.train()
+    for i in range(3):
+        time_start = time.time()
+        print(f"seed = {i}")
+        random.seed(i)
+        trainer = Trainer()
+        trainer.train()
+        time_end = time.time()
+        print(f"time taken = {time_end - time_start} seconds")
+
+        
+
+# if __name__ == "__main__":
+#     random.seed(SEED)
+#     trainer = Trainer()
+#     trainer.train()
     
     
 
